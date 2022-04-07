@@ -95,3 +95,176 @@ model = neighbors.KNeighborsClassifier(n_neighbors=5, weights="uniform")
 model.fit(xtrain_emb, ytrain)
 
 KNClassifier()
+
+
+########### FAZER A DOCUMENTACAO AIUNDA
+
+"""# Ajuste de parâmetros"""
+
+model.predict([converter.encode('olah pessoal')])
+
+"""# Avaliação do Modelo"""
+
+import sklearn.metrics as metrics
+
+pred = model.predict(xtest_emb)
+
+"""# Teste"""
+
+model.predict([converter.encode('gostaria de pedir um soba')])
+
+
+
+"""#Modelo final"""
+
+model.fit(converter.encode(xtrain_global),ytrain_global)
+
+from joblib import dump, load
+
+dump(model, 'garcom.joblib')
+
+modelo_final = load('garcom.joblib')
+
+modelo_final.predict([converter.encode('fecha a conta')])
+
+
+
+"""# Construção de um chatbot"""
+
+def convert_num(n):
+    valores = {'um':1,
+               'uma':1,
+               'dois':2,
+               'duas':2,
+               'tres':3,
+               'quatro':4,
+               'cinco':5,
+               'seis':6,
+               'sete':7,
+               'oito':8,
+               'nove':9,
+               'dez':10}
+    ret = 0
+    if n.isnumeric():
+        ret = int(n)
+    else:
+        if n in valores.keys():
+            ret = valores[n]
+
+    return ret
+
+!pip install unidecode
+
+from nltk.tokenize import TweetTokenizer
+from unidecode import unidecode
+tknzr = TweetTokenizer()
+
+lista_entidades = [
+'item:coca,cocas,coca-cola,guarana,agua,guaranas',
+'item:soba,espeto,sobas,espetos',
+'num:1,2,3,4,5,6,7,8,9,10',
+'num:um,dois,tres,quatro,cinco,seis,sete,oito,nove,dez,uma,duas'
+]
+entidades = dict()
+def load_entidades(lista_entidades):
+            for line in lista_entidades:
+                entidade,valores = line.split(':')
+                str_valores = valores[:]
+                valores = str_valores.split(',')
+                for valor in valores:
+                    if valor not in entidades.keys():
+                        entidades[valor] = entidade
+load_entidades(lista_entidades)
+def find_entidades(texto):
+    ret = dict()
+    for token in tknzr.tokenize(texto):
+        token = token.lower()
+        token = unidecode(token)
+        if token in entidades.keys():
+            ent = entidades[token]
+            if ent not in ret.keys():
+                ret[ent] = [token]
+            else:
+                ret[ent] += [token]
+    return ret
+
+def convert_num(n):
+    valores = {'um':1,
+               'uma':1,
+               'dois':2,
+               'duas':2,
+               'tres':3,
+               'quatro':4,
+               'cinco':5,
+               'seis':6,
+               'sete':7,
+               'oito':8,
+               'nove':9,
+               'dez':10}
+    ret = 0
+    if n.isnumeric():
+        ret = int(n)
+    else:
+        if n in valores.keys():
+            ret = valores[n]
+
+    return ret
+
+print(find_entidades('me ve um sobá ai'))
+
+valor_cardapio = {
+    'soba':20.0,
+    'espeto':20.0,
+    'coca':5.0,
+    'guarana':5.0
+}
+
+def str_menu(h):
+    rstr = ''
+    for item in h:
+        rstr += f"{item:<10}  {h[item]:>5}\n"
+    return rstr
+
+print(str_menu(valor_cardapio))
+
+
+
+sair = False
+#intencoes = ['fazer_pedido', 'fechar_conta', 'ver_cardapio']
+print("Ola, seja bem vindo a sobaria da FACOM, o que gostaria de pedir?")
+pedidos = []
+while(not sair):
+    cliente = input("<")
+    msg = ''
+    pred = modelo_final.predict([converter.encode(cliente)])[0]
+    if pred == 'ver_cardapio':
+        msg = str_menu(valor_cardapio)
+    elif pred == 'fazer_pedido':
+        ent = find_entidades(cliente)
+        print(ent)
+        joined = [[x,y] for x,y in zip(ent['num'],ent['item'])]
+        pedidos.append(joined)
+        msg += 'ok '
+        for n,item in joined[:-1]:
+            msg += ',%s %s '%(n,item)
+        msg += ('e %s %s '%(joined[-1][0],joined[-1][1]))        
+        msg += 'saindo\n'
+    elif pred == 'fechar_conta':
+        msg += 'Ok, foi pedido:\n'
+        total = 0
+        for joined in pedidos:
+            for n,item in joined:
+                nvalor = convert_num(n)
+                if item in valor_cardapio.keys():
+                    vitem = valor_cardapio[item]
+                total += vitem*nvalor
+                msg += '%s %s %04.2f\n'%(n,item,vitem*nvalor)
+            
+        msg += ('Total foi R$ %4.2f\n'%total)
+    elif pred == 'bye':
+        msg = 'Bye, volte sempre\n'
+        sair = True
+    else:
+        msg = 'Não, entendi. \n'+str_menu(valor_cardapio)
+    print(msg)
+
